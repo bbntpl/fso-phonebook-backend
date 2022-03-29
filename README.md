@@ -1,0 +1,1 @@
+This git repository contains exercise 3.1 from fullstackopen.
