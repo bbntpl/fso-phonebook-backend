@@ -59,10 +59,37 @@ app.get('/api/persons/:id', (req, res) => {
 app.use(express.json());
 
 app.post('/api/persons', (req, res) => {
-	const person = req.body;
-	person.id = generateUniqueId();
-	persons.push(person);
-	res.json(person);
+	const newPerson = req.body;
+
+	//destructured properties of request body
+	const { name, number } = newPerson;
+
+	//validates the received body to confirm
+	//whether the known conditions are met
+	const checkForErrors = () => {
+		let error = '';
+		if (!name && !number) {
+			error = 'name and number are missing'
+		} else if (!name || !number) {
+			error = `${!name ? 'name' : 'number'} is missing`;
+		} else if (persons.find(person => person.name === name)) {
+			error = 'name must be unique';
+		}
+		return error;
+	}
+
+	if (!checkForErrors()) {
+		newPerson.id = generateUniqueId();
+		persons.push(newPerson);
+		res.json(newPerson);
+	} else {
+		//respond with an error and an error message
+		//when the conditions aren't met
+		res.status(400).json({
+			error: checkForErrors()
+		});
+	}
+
 });
 
 const PORT = 3001;
