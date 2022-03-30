@@ -1,1 +1,1 @@
-This git repository contains exercises 3.1 - 3.6 from fullstackopen.
+This git repository contains exercises 3.1 - 3.7 from fullstackopen.

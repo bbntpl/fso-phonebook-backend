@@ -1,5 +1,9 @@
 const express = require('express');
+const morgan = require('morgan');
+
 const app = express();
+
+app.use(morgan('tiny'));
 
 let persons = [
 	{
@@ -77,6 +81,7 @@ app.post('/api/persons', (req, res) => {
 		}
 		return error;
 	}
+
 
 	if (!checkForErrors()) {
 		newPerson.id = generateUniqueId();
