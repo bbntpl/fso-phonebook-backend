@@ -3,7 +3,14 @@ const morgan = require('morgan');
 
 const app = express();
 
-app.use(morgan('tiny'));
+morgan.token('body', function (req,res) {
+	return JSON.stringify(req.body);
+});
+
+//format used for log output
+const customFormat = ':method :url :status :res[content-length] - :response-time ms :body';
+
+app.use(morgan(customFormat));
 
 let persons = [
 	{
