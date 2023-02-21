@@ -1,16 +1,26 @@
 const express = require('express');
 const morgan = require('morgan');
-
+const cors = require('cors');
 const app = express();
 
-morgan.token('body', function (req,res) {
-	return JSON.stringify(req.body);
-});
+// define a token that returns the body after the request
+morgan.token('body', (req, _) => req.body );
 
-//format used for log output
-const customFormat = ':method :url :status :res[content-length] - :response-time ms :body';
+const logRequestMessages = morgan((tokens, req, res) => {
+	return [
+		tokens.method(req, res),
+		tokens.url(req, res),
+		tokens.status(req, res),
+		tokens.res(req, res, 'content-length'), '-',
+		tokens['response-time'](req, res), 'ms',
+		JSON.stringify(tokens.body(req, res)),
+	].join(' ');
+})
 
-app.use(morgan(customFormat));
+app.use(express.static('build'));
+app.use(express.json());
+app.use(cors());
+app.use(logRequestMessages);
 
 let persons = [
 	{
@@ -32,79 +42,73 @@ let persons = [
 		"id": 4,
 		"name": "Mary Poppendieck",
 		"number": "39-23-6423122"
-	}
+	},
+	{
+		"id": 5,
+		"name": "B.B. Antipolo	",
+		"number": "17-161-1231"
+	},
 ];
 
 const generateUniqueId = () => {
 	return Math.floor(Math.random() * Math.floor(Math.random() * Date.now()));
 };
 
+app.get('/info', (req, res) => {
+	const totalPersons = persons.length;
+	const date = new Date();
+	const content = (
+		`<div>
+		<p>Phonebook has info for ${totalPersons} people</p>
+		<p>${date}</p>
+		<div>`
+	)
+
+	res.send(content);
+});
+
 app.get('/api/persons', (req, res) => {
 	res.json(persons);
-});
-
-//display the total person from the phonebook and the date
-app.get('/info', (req, res) => {
-	const str = `<p>Phonebook has info for ${persons.length} people<p> 
-	<p>${new Date()}</p>`;
-	res.send(str);
-});
-
-app.delete('/api/persons/:id', (req, res) => {
-	const id = Number(req.params.id);
-	persons = persons.filter(person => person.id !== id);
-
-	res.status(204).end();
 });
 
 app.get('/api/persons/:id', (req, res) => {
 	const id = Number(req.params.id);
 	const person = persons.find(person => person.id === id);
+
+	// if person is truthy respond with person object as json
+	// otherwise, respond with status 404
 	if (person) {
 		res.json(person);
 	} else {
-		res.status(404).end();
+		res.status(404).end('Sorry, I cannot find what you\'re looking for :(');
 	}
 });
-
-app.use(express.json());
 
 app.post('/api/persons', (req, res) => {
-	const newPerson = req.body;
+	const person = req.body;
+	person.id = generateUniqueId();
 
-	//destructured properties of request body
-	const { name, number } = newPerson;
+	const doesNameAlreadyExists = persons.some(p => p.name === person.name);
+	const areRequirementsMet = person.hasOwnProperty('name') && person.hasOwnProperty('number');
 
-	//validates the received body to confirm
-	//whether the known conditions are met
-	const checkForErrors = () => {
-		let error = '';
-		if (!name && !number) {
-			error = 'name and number are missing'
-		} else if (!name || !number) {
-			error = `${!name ? 'name' : 'number'} is missing`;
-		} else if (persons.find(person => person.name === name)) {
-			error = 'name must be unique';
-		}
-		return error;
-	}
-
-
-	if (!checkForErrors()) {
-		newPerson.id = generateUniqueId();
-		persons.push(newPerson);
-		res.json(newPerson);
+	if (!areRequirementsMet) {
+		res.status(400).end('Error: The object must contain the name and number properties');
+	} else if (doesNameAlreadyExists) {
+		res.status(400).end('Error: name must be unique');
 	} else {
-		//respond with an error and an error message
-		//when the conditions aren't met
-		res.status(400).json({
-			error: checkForErrors()
-		});
+		persons = persons.concat(person)
+		res.json(person);
 	}
-
 });
 
-const PORT = 3001;
+app.delete('/api/persons/:id', (req, res) => {
+	const id = Number(req.params.id)
+	persons = persons.filter(note => note.id !== id)
+
+	res.status(204).end()
+});
+
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-	console.log(`Server running on port ${PORT}`);
-})
+	console.log(`starting server on port${PORT}`);
+});
