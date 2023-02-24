@@ -77,13 +77,14 @@ const deletePerson = (req, res, next) => {
 
 const updateNumber = (req, res, next) => {
 	const { body } = req;
-	const id = req.params;
+	const { id } = req.params;
 
+	// args: id(1), updatedObject(2), 
+	// and options.new(3) = true - it returns the updated object
 	Person
-		.findByIdAndUpdate(id, body)
-		.then(result => {
-			res.json(result);
-			console.log(`Succes! Updated the phone number of ${result.name}`);
+		.findByIdAndUpdate(id, body, { new: true })
+		.then(returnedPerson => {
+			res.json(returnedPerson);
 		})
 		.catch(error => next(error))
 }
