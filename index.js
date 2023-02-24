@@ -1,10 +1,21 @@
+require('dotenv').config();
+
 const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
 const app = express();
 
+const { 
+	getAll,
+	getInfo,
+	getPersonById,
+	createPerson,
+	deletePerson,
+	updateNumber,
+} = require('./services/mongo')
+
 // define a token that returns the body after the request
-morgan.token('body', (req, _) => req.body );
+morgan.token('body', (req, _) => req.body);
 
 const logRequestMessages = morgan((tokens, req, res) => {
 	return [
@@ -17,96 +28,56 @@ const logRequestMessages = morgan((tokens, req, res) => {
 	].join(' ');
 })
 
-app.use(express.static('build'));
-app.use(express.json());
+const unknownEndpoint = (request, response) => {
+  response.status(404).send({ error: 'unknown endpoint' })
+}
+
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message)
+
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'malformatted id' })
+  } 
+
+	next(error);
+}
+
 app.use(cors());
+app.use(express.json());
 app.use(logRequestMessages);
+app.use(express.static('build'));
 
-let persons = [
-	{
-		"id": 1,
-		"name": "Arto Hellas",
-		"number": "040-123456"
-	},
-	{
-		"id": 2,
-		"name": "Ada Lovelace",
-		"number": "39-44-5323523"
-	},
-	{
-		"id": 3,
-		"name": "Dan Abramov",
-		"number": "12-43-234345"
-	},
-	{
-		"id": 4,
-		"name": "Mary Poppendieck",
-		"number": "39-23-6423122"
-	},
-	{
-		"id": 5,
-		"name": "B.B. Antipolo	",
-		"number": "17-161-1231"
-	},
-];
-
-const generateUniqueId = () => {
-	return Math.floor(Math.random() * Math.floor(Math.random() * Date.now()));
-};
+// const generateUniqueId = () => {
+// 	return Math.floor(Math.random() * Math.floor(Math.random() * Date.now()));
+// };
 
 app.get('/info', (req, res) => {
-	const totalPersons = persons.length;
-	const date = new Date();
-	const content = (
-		`<div>
-		<p>Phonebook has info for ${totalPersons} people</p>
-		<p>${date}</p>
-		<div>`
-	)
-
-	res.send(content);
+	getInfo(res);
 });
 
 app.get('/api/persons', (req, res) => {
-	res.json(persons);
+	getAll(res);
 });
 
-app.get('/api/persons/:id', (req, res) => {
-	const id = Number(req.params.id);
-	const person = persons.find(person => person.id === id);
-
-	// if person is truthy respond with person object as json
-	// otherwise, respond with status 404
-	if (person) {
-		res.json(person);
-	} else {
-		res.status(404).end('Sorry, I cannot find what you\'re looking for :(');
-	}
+app.get('/api/persons/:id', (req, res, next) => {
+	getPersonById(req, res, next);
 });
 
 app.post('/api/persons', (req, res) => {
-	const person = req.body;
-	person.id = generateUniqueId();
-
-	const doesNameAlreadyExists = persons.some(p => p.name === person.name);
-	const areRequirementsMet = person.hasOwnProperty('name') && person.hasOwnProperty('number');
-
-	if (!areRequirementsMet) {
-		res.status(400).end('Error: The object must contain the name and number properties');
-	} else if (doesNameAlreadyExists) {
-		res.status(400).end('Error: name must be unique');
-	} else {
-		persons = persons.concat(person)
-		res.json(person);
-	}
+	const newPerson = req.body;
+	createPerson(newPerson, res);
 });
 
-app.delete('/api/persons/:id', (req, res) => {
-	const id = Number(req.params.id)
-	persons = persons.filter(note => note.id !== id)
-
-	res.status(204).end()
+app.delete('/api/persons/:id', (req, res, next) => {
+	deletePerson(req, res, next);
 });
+
+app.put('/api/persons/:id', (req, res, next) => {
+	updateNumber(req, res, next);
+})
+
+app.use(unknownEndpoint);
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
